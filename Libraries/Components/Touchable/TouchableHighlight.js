@@ -95,6 +95,7 @@ var TouchableHighlight = React.createClass({
   // Performance optimization to avoid constantly re-generating these objects.
   _computeSyntheticState: function(props) {
     return {
+      underlayActive: this.state.underlayActive,
       activeProps: {
         style: {
           opacity: props.activeOpacity,
@@ -133,6 +134,11 @@ var TouchableHighlight = React.createClass({
         nextProps.underlayColor !== this.props.underlayColor ||
         nextProps.style !== this.props.style) {
       this.setState(this._computeSyntheticState(nextProps));
+    }
+
+    if (this.state.underlayActive &&
+        nextProps.underlayColor !== this.props.underlayColor) {
+      this._applyActive();
     }
   },
 
@@ -191,13 +197,26 @@ var TouchableHighlight = React.createClass({
     return this.props.delayPressOut;
   },
 
+  _applyActive: function() {
+    this.refs[UNDERLAY_REF].setNativeProps(this.state.activeUnderlayProps);
+    this.refs[CHILD_REF].setNativeProps(this.state.activeProps);
+  },
+
+  _removeActive: function() {
+    this.refs[CHILD_REF].setNativeProps(INACTIVE_CHILD_PROPS);
+    this.refs[UNDERLAY_REF].setNativeProps({
+      ...INACTIVE_UNDERLAY_PROPS,
+      style: this.state.underlayStyle,
+    });
+  },
+
   _showUnderlay: function() {
     if (!this.isMounted() || !this._hasPressHandler()) {
       return;
     }
 
-    this.refs[UNDERLAY_REF].setNativeProps(this.state.activeUnderlayProps);
-    this.refs[CHILD_REF].setNativeProps(this.state.activeProps);
+    this._applyActive();
+    this.setState({ ...this.state, underlayActive: true });
     this.props.onShowUnderlay && this.props.onShowUnderlay();
   },
 
@@ -205,11 +224,8 @@ var TouchableHighlight = React.createClass({
     this.clearTimeout(this._hideTimeout);
     this._hideTimeout = null;
     if (this._hasPressHandler() && this.refs[UNDERLAY_REF]) {
-      this.refs[CHILD_REF].setNativeProps(INACTIVE_CHILD_PROPS);
-      this.refs[UNDERLAY_REF].setNativeProps({
-        ...INACTIVE_UNDERLAY_PROPS,
-        style: this.state.underlayStyle,
-      });
+      this._removeActive();
+      this.setState({ ...this.state, underlayActive: false });
       this.props.onHideUnderlay && this.props.onHideUnderlay();
     }
   },
